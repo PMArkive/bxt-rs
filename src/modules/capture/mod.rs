@@ -383,6 +383,11 @@ pub unsafe fn time_passed(marker: MainThreadMarker) {
         _ => return,
     };
 
+    // Skip the variable part of loads similar to what the BXT timing does.
+    if (*engine::cls.get(marker)).state < 4 {
+        return;
+    }
+
     // Accumulate time for the last frame.
     let time = *engine::host_frametime.get(marker);
     recorder.time_passed(time);
