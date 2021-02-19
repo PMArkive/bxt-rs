@@ -74,7 +74,7 @@ use ash::{
     version::{DeviceV1_0, InstanceV1_0},
     vk,
 };
-use color_eyre::eyre::{self, ensure, eyre};
+use color_eyre::eyre::{self, ensure, eyre, WrapErr};
 use rust_hawktracer::*;
 
 use super::{muxer::Muxer, ExternalObject};
@@ -582,7 +582,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
     let instance = crate::vulkan::VULKAN.get().unwrap().instance();
 
     // Physical device.
-    let physical_devices = unsafe { instance.enumerate_physical_devices()? };
+    let physical_devices = unsafe {
+        instance
+            .enumerate_physical_devices()
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
     let mut physical_device_index = 0;
     debug!("physical devices:");
     for (i, &device) in physical_devices.iter().enumerate() {
@@ -640,20 +644,32 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         .queue_create_infos(&queue_create_infos)
         .enabled_extension_names(&extension_names)
         .push_next(&mut physical_device_8_bit_storage_features);
-    let device = unsafe { instance.create_device(physical_device, &create_info, None)? };
+    let device = unsafe {
+        instance
+            .create_device(physical_device, &create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Command pool.
     let create_info = vk::CommandPoolCreateInfo::builder()
         .queue_family_index(queue_family_index)
         .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER);
-    let command_pool = unsafe { device.create_command_pool(&create_info, None)? };
+    let command_pool = unsafe {
+        device
+            .create_command_pool(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Command buffer.
     let create_info = vk::CommandBufferAllocateInfo::builder()
         .command_pool(command_pool)
         .level(vk::CommandBufferLevel::PRIMARY)
         .command_buffer_count(2);
-    let command_buffers = unsafe { device.allocate_command_buffers(&create_info)? };
+    let command_buffers = unsafe {
+        device
+            .allocate_command_buffers(&create_info)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
     let command_buffer_sampling = command_buffers[0];
     let command_buffer_color_conversion = command_buffers[1];
 
@@ -690,7 +706,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         )
         .sharing_mode(vk::SharingMode::EXCLUSIVE)
         .push_next(&mut external_memory_image_create_info);
-    let image_frame = unsafe { device.create_image(&create_info, None)? };
+    let image_frame = unsafe {
+        device
+            .create_image(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let image_frame_memory_requirements =
         unsafe { device.get_image_memory_requirements(image_frame) };
@@ -713,8 +733,16 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         .memory_type_index(image_frame_memory_type_index)
         .push_next(&mut export_memory_allocate_info)
         .push_next(&mut memory_dedicated_allocate_info);
-    let image_frame_memory = unsafe { device.allocate_memory(&create_info, None)? };
-    unsafe { device.bind_image_memory(image_frame, image_frame_memory, 0)? };
+    let image_frame_memory = unsafe {
+        device
+            .allocate_memory(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
+    unsafe {
+        device
+            .bind_image_memory(image_frame, image_frame_memory, 0)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // External memory.
     #[cfg(unix)]
@@ -730,7 +758,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         .address_mode_v(vk::SamplerAddressMode::CLAMP_TO_EDGE)
         .address_mode_w(vk::SamplerAddressMode::CLAMP_TO_EDGE)
         .unnormalized_coordinates(true);
-    let sampler_frame = unsafe { device.create_sampler(&create_info, None)? };
+    let sampler_frame = unsafe {
+        device
+            .create_sampler(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Image view for the image for the OpenGL frame.
     let create_info = vk::ImageViewCreateInfo::builder()
@@ -744,7 +776,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
             base_array_layer: 0,
             layer_count: 1,
         });
-    let image_view_frame = unsafe { device.create_image_view(&create_info, None)? };
+    let image_view_frame = unsafe {
+        device
+            .create_image_view(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Image for the sampling buffer.
     let create_info = vk::ImageCreateInfo {
@@ -765,7 +801,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         sharing_mode: vk::SharingMode::EXCLUSIVE,
         ..Default::default()
     };
-    let image_sample = unsafe { device.create_image(&create_info, None)? };
+    let image_sample = unsafe {
+        device
+            .create_image(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let image_sample_memory_requirements =
         unsafe { device.get_image_memory_requirements(image_sample) };
@@ -778,8 +818,16 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
     let create_info = vk::MemoryAllocateInfo::builder()
         .allocation_size(image_sample_memory_requirements.size)
         .memory_type_index(image_sample_memory_type_index);
-    let image_sample_memory = unsafe { device.allocate_memory(&create_info, None)? };
-    unsafe { device.bind_image_memory(image_sample, image_sample_memory, 0)? };
+    let image_sample_memory = unsafe {
+        device
+            .allocate_memory(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
+    unsafe {
+        device
+            .bind_image_memory(image_sample, image_sample_memory, 0)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Sampler for the image for the sampling buffer.
     let create_info = vk::SamplerCreateInfo::builder()
@@ -787,7 +835,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         .address_mode_v(vk::SamplerAddressMode::CLAMP_TO_EDGE)
         .address_mode_w(vk::SamplerAddressMode::CLAMP_TO_EDGE)
         .unnormalized_coordinates(true);
-    let sampler_sample = unsafe { device.create_sampler(&create_info, None)? };
+    let sampler_sample = unsafe {
+        device
+            .create_sampler(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Image view for the image for the sampling buffer.
     let create_info = vk::ImageViewCreateInfo::builder()
@@ -801,7 +853,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
             base_array_layer: 0,
             layer_count: 1,
         });
-    let image_view_sample = unsafe { device.create_image_view(&create_info, None)? };
+    let image_view_sample = unsafe {
+        device
+            .create_image_view(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Semaphore.
     #[cfg(unix)]
@@ -814,7 +870,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
     );
     let create_info =
         vk::SemaphoreCreateInfo::builder().push_next(&mut export_semaphore_create_info);
-    let semaphore = unsafe { device.create_semaphore(&create_info, None)? };
+    let semaphore = unsafe {
+        device
+            .create_semaphore(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Export semaphore.
     #[cfg(unix)]
@@ -831,7 +891,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         .size(width as u64 * height as u64 / 2 * 3) // Full-res Y + quarter-res U, V.
         .usage(vk::BufferUsageFlags::STORAGE_BUFFER | vk::BufferUsageFlags::TRANSFER_SRC)
         .sharing_mode(vk::SharingMode::EXCLUSIVE);
-    let buffer_color_conversion_output = unsafe { device.create_buffer(&create_info, None)? };
+    let buffer_color_conversion_output = unsafe {
+        device
+            .create_buffer(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let buffer_color_conversion_output_memory_requirements =
         unsafe { device.get_buffer_memory_requirements(buffer_color_conversion_output) };
@@ -844,8 +908,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
     let create_info = vk::MemoryAllocateInfo::builder()
         .allocation_size(buffer_color_conversion_output_memory_requirements.size)
         .memory_type_index(buffer_color_conversion_output_memory_type_index);
-    let buffer_color_conversion_output_memory =
-        unsafe { device.allocate_memory(&create_info, None)? };
+    let buffer_color_conversion_output_memory = unsafe {
+        device
+            .allocate_memory(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
     unsafe {
         device.bind_buffer_memory(
             buffer_color_conversion_output,
@@ -859,7 +926,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         .size(width as u64 * height as u64 / 2 * 3) // Full-res Y + quarter-res U, V.
         .usage(vk::BufferUsageFlags::TRANSFER_DST)
         .sharing_mode(vk::SharingMode::EXCLUSIVE);
-    let buffer = unsafe { device.create_buffer(&create_info, None)? };
+    let buffer = unsafe {
+        device
+            .create_buffer(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let buffer_memory_requirements = unsafe { device.get_buffer_memory_requirements(buffer) };
     let buffer_memory_type_index = find_memorytype_index(
@@ -871,8 +942,16 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
     let create_info = vk::MemoryAllocateInfo::builder()
         .allocation_size(buffer_memory_requirements.size)
         .memory_type_index(buffer_memory_type_index);
-    let buffer_memory = unsafe { device.allocate_memory(&create_info, None)? };
-    unsafe { device.bind_buffer_memory(buffer, buffer_memory, 0)? };
+    let buffer_memory = unsafe {
+        device
+            .allocate_memory(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
+    unsafe {
+        device
+            .bind_buffer_memory(buffer, buffer_memory, 0)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Descriptor set layout for the color conversion shader.
     let bindings = [
@@ -890,8 +969,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
             .build(),
     ];
     let create_info = vk::DescriptorSetLayoutCreateInfo::builder().bindings(&bindings);
-    let descriptor_set_layout_color_conversion =
-        unsafe { device.create_descriptor_set_layout(&create_info, None)? };
+    let descriptor_set_layout_color_conversion = unsafe {
+        device
+            .create_descriptor_set_layout(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Descriptor pool.
     let create_info = vk::DescriptorPoolCreateInfo::builder()
@@ -906,15 +988,22 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
                 descriptor_count: 1,
             },
         ]);
-    let descriptor_pool = unsafe { device.create_descriptor_pool(&create_info, None)? };
+    let descriptor_pool = unsafe {
+        device
+            .create_descriptor_pool(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Descriptor set.
     let set_layouts = [descriptor_set_layout_color_conversion];
     let create_info = vk::DescriptorSetAllocateInfo::builder()
         .descriptor_pool(descriptor_pool)
         .set_layouts(&set_layouts);
-    let descriptor_set_color_conversion =
-        unsafe { device.allocate_descriptor_sets(&create_info)?[0] };
+    let descriptor_set_color_conversion = unsafe {
+        device
+            .allocate_descriptor_sets(&create_info)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?[0]
+    };
 
     let image_info = vk::DescriptorImageInfo::builder()
         .sampler(sampler_sample)
@@ -940,15 +1029,24 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
 
     // Shader.
     let shader_code = include_bytes!("color_conversion.spv");
-    let shader_code = read_spv(&mut Cursor::new(&shader_code[..]))?;
+    let shader_code = read_spv(&mut Cursor::new(&shader_code[..]))
+        .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?;
 
     let create_info = vk::ShaderModuleCreateInfo::builder().code(&shader_code);
-    let shader_module = unsafe { device.create_shader_module(&create_info, None)? };
+    let shader_module = unsafe {
+        device
+            .create_shader_module(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     // Pipeline.
     let set_layouts = [descriptor_set_layout_color_conversion];
     let create_info = vk::PipelineLayoutCreateInfo::builder().set_layouts(&set_layouts);
-    let pipeline_layout = unsafe { device.create_pipeline_layout(&create_info, None)? };
+    let pipeline_layout = unsafe {
+        device
+            .create_pipeline_layout(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let name = b"main\0";
     let name = unsafe { CStr::from_ptr(name.as_ptr().cast()) };
@@ -968,7 +1066,11 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
     // Release image for the OpenGL frame and signal semaphore.
     let begin_info =
         vk::CommandBufferBeginInfo::builder().flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-    unsafe { device.begin_command_buffer(command_buffer_sampling, &begin_info)? };
+    unsafe {
+        device
+            .begin_command_buffer(command_buffer_sampling, &begin_info)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let image_frame_memory_barrier = vk::ImageMemoryBarrier::builder()
         .src_access_mask(vk::AccessFlags::empty())
@@ -1015,19 +1117,35 @@ pub fn init(width: u32, height: u32) -> eyre::Result<Vulkan> {
         )
     };
 
-    unsafe { device.end_command_buffer(command_buffer_sampling)? };
+    unsafe {
+        device
+            .end_command_buffer(command_buffer_sampling)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let create_info = vk::FenceCreateInfo::default();
-    let fence = unsafe { device.create_fence(&create_info, None)? };
+    let fence = unsafe {
+        device
+            .create_fence(&create_info, None)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
     let command_buffers = [command_buffer_sampling];
     let semaphores = [semaphore];
     let submit_info = vk::SubmitInfo::builder()
         .command_buffers(&command_buffers)
         .signal_semaphores(&semaphores);
-    unsafe { device.queue_submit(queue, &[*submit_info], fence)? };
+    unsafe {
+        device
+            .queue_submit(queue, &[*submit_info], fence)
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
 
-    unsafe { device.wait_for_fences(&[fence], true, u64::max_value())? };
+    unsafe {
+        device
+            .wait_for_fences(&[fence], true, u64::max_value())
+            .wrap_err_with(|| format!("{} {} {}", file!(), line!(), column!()))?
+    };
     unsafe { device.destroy_fence(fence, None) };
 
     Ok(Vulkan {
