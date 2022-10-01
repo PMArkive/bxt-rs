@@ -14,6 +14,8 @@ mod vulkan;
 #[cfg(windows)]
 mod windows;
 
+// Export functions for Bunnymod XT to call.
+pub use hooks::bxt::exported::*;
 // Export all functions we want to hook via LD_PRELOAD on Linux.
 #[cfg(unix)]
 pub use hooks::engine::exported::*;

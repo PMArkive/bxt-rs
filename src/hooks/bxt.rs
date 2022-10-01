@@ -73,3 +73,19 @@ pub fn is_simulation_ipc_client(marker: MainThreadMarker) -> bool {
             unsafe { f() } != 0)
         .unwrap_or(false)
 }
+
+pub mod exported {
+    #![allow(clippy::missing_safety_doc)]
+
+    use super::*;
+    use crate::utils::abort_on_panic;
+
+    #[no_mangle]
+    pub unsafe extern "C" fn bxt_rs_on_tas_playback_frame() {
+        abort_on_panic(move || {
+            let marker = MainThreadMarker::new();
+
+            info!("bxt_rs_on_tas_playback_frame()");
+        })
+    }
+}
